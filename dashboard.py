@@ -56,7 +56,8 @@ fig = px.scatter_mapbox(mapLocations,
                         hover_data=[mapLocations.Hotel_Name, mapLocations.Hotel_Address],
                         width=1500,
                         height=800,
-                        zoom=4
+                        zoom=4,
+                        title="Hotel Locations of the reviews"
                         )
 
 fig.update_layout(
