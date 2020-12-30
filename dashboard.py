@@ -43,9 +43,9 @@ mapLocations["lat"] = pd.to_numeric(mapLocations["lat"])
 mapLocations["lng"] = pd.to_numeric(mapLocations["lng"])
 
 # mapLocations["Tags"] = mapLocations["Tags"].apply(
-# #     lambda x: re.sub(r"[\[\]']", "", x).split(","))  # converts string to list
+# #     lambda x: re.sub(r"[\[\]']", "", x).split(","))  # converts string to listie
 # # mapLocations["Tags"] = mapLocations["Tags"].apply(
-# #     lambda x: [i.strip() for i in x])  # takes every item in list and removes the whitespace left and right
+# #     lambda x: [i.strip() for i in x])  # takes every item in listie and removes the whitespace left and right
 mapLocations["Tags"] = mapLocations["Tags"].apply(str)
 # mapLocations["Tags"] = mapLocations["Tags"].apply(lambda x: x.strip())
 
