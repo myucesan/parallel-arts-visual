@@ -86,9 +86,9 @@ if __name__ == '__main__':
 
     y_pred = log_reg.predict(X_test)
     Y_pred2 = log_ref2.predict(X_test)
-    print(log_reg.predict_proba(X_test)[:, 1])
+    print(log_reg.predict_proba(X_test).shape)
 
-    y_pred_prob = log_reg.predict_proba(X_test)[:, 1]
+    # y_pred_prob = log_reg.predict_proba(X_test)[:, 1]
     print(9123456789)
     # print(classification_report(y_test, y_pred))
 
