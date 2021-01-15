@@ -1,59 +1,21 @@
 import pandas as pd
-import plotly.express as px
 import numpy as np
+import plotly.express as px
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
-from pymongo import MongoClient
-import re
+
 from dash.dependencies import Input, Output
-
-if __name__ == '__main__':
-    print('This code will serve as a comparison for Dask-ML and Spark-Mlib')
-    client = MongoClient("localhost:27017")
-    db = client.deds
-    mapLocations = pd.DataFrame(
-        list(db.reviews.find({}, {"Hotel_Name": 1, "Hotel_Address": 1, "Tags": 1, "lat": 1, "lng": 1})))
-    uniqueTags = pd.DataFrame(list(db.reviews.find({}, {"Hotel_Name": 1, "Tags": 1})))
-    uniqueTags = uniqueTags.drop_duplicates(["Hotel_Name"])["Tags"]
-    allTags = list()
-    for tags in uniqueTags:
-        tags = re.sub(r"[\[\]']", "", tags).split(",")
-        for tag in tags:
-            tag = tag.strip()
-            if tag not in allTags:
-                allTags.append({'label': tag, 'value': tag})
-
-# Map with hotels on latitude and longitude (zoom)
-# Filter on tags
-# List will all hotels (overview)
-# Select hotel and get more information (details)
-
-# average score per hotel
-# Bar chart of Reviewer nationality
+import dashboard_data as dd
 
 px.set_mapbox_access_token(
     "pk.eyJ1IjoiYmQzYnRlYW0xIiwiYSI6ImNraTY0Zm5haDIwbTcycW1zc3RxcTU1eW4ifQ.Ic3rinQogDpTHOOhOYNDIQ")
 
-mapLocations = mapLocations.drop_duplicates(["lat", "lng"])
-mapLocations = mapLocations[mapLocations["lat"] != "NA"]
-mapLocations = mapLocations[mapLocations["lng"] != "NA"]
-mapLocations["lat"] = pd.to_numeric(mapLocations["lat"])
-mapLocations["lng"] = pd.to_numeric(mapLocations["lng"])
-
-# mapLocations["Tags"] = mapLocations["Tags"].apply(
-# #     lambda x: re.sub(r"[\[\]']", "", x).split(","))  # converts string to listie
-# # mapLocations["Tags"] = mapLocations["Tags"].apply(
-# #     lambda x: [i.strip() for i in x])  # takes every item in listie and removes the whitespace left and right
-mapLocations["Tags"] = mapLocations["Tags"].apply(str)
-# mapLocations["Tags"] = mapLocations["Tags"].apply(lambda x: x.strip())
-
-
-fig = px.scatter_mapbox(mapLocations,
-                        lat=mapLocations.lat,
-                        lon=mapLocations.lng,
-                        hover_data=[mapLocations.Hotel_Name, mapLocations.Hotel_Address],
+fig = px.scatter_mapbox(dd.mapLocations,
+                        lat=dd.mapLocations.lat,
+                        lon=dd.mapLocations.lng,
+                        hover_data=[dd.mapLocations.Hotel_Name, dd.mapLocations.Hotel_Address],
                         width=1500,
                         height=800,
                         zoom=4,
@@ -63,6 +25,12 @@ fig = px.scatter_mapbox(mapLocations,
 fig.update_layout(
     mapbox_style="mapbox://styles/bd3bteam1/ckix6zvnw5i0619rpu1i4isl2",
 )
+nationalityFig = px.pie(dd.reviewerNationalityCountAggregate,
+                        values="COUNT(Reviewer_Nationality)",
+                        names="Reviewer_Nationality")
+
+additionalScoringFig = px.treemap(dd.additionalNumberDF, path=["_id"], values='value')
+
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -70,13 +38,13 @@ app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 @app.callback(Output(component_id="hotel-plot", component_property="figure"),
               Input(component_id="tag-select", component_property="value"))
 def updator(tags):
-    mapLocations["Tags"] = mapLocations["Tags"].apply(lambda x: str(x).__contains__(tags))
-    updated = mapLocations[mapLocations["Tags"] == True]
+    dd.mapLocations["Tags"] = dd.mapLocations["Tags"].apply(lambda x: str(x).__contains__(tags))
+    updated = dd.mapLocations[dd.mapLocations["Tags"] == True]
 
     updatedFigure = px.scatter_mapbox(updated,
-                                      lat=mapLocations.lat,
-                                      lon=mapLocations.lng,
-                                      hover_data=[mapLocations.Hotel_Name, mapLocations.Hotel_Address],
+                                      lat=dd.mapLocations.lat,
+                                      lon=dd.mapLocations.lng,
+                                      hover_data=[dd.mapLocations.Hotel_Name, dd.mapLocations.Hotel_Address],
                                       width=1500,
                                       height=800,
                                       zoom=4
@@ -84,14 +52,40 @@ def updator(tags):
 
     return updatedFigure
 
-
 app.layout = html.Div([
-    dcc.Graph(id="hotel-plot", figure=fig),
-    dcc.Dropdown(
-        id='tag-select',
-        options=allTags,
-        value='Leisure trip')
+    dcc.Tabs(id='tabs', value='tab-1', children=[
+        dcc.Tab(label='Overview | Zoom | Filter | Details on Demand', value='tab-1'),
+        dcc.Tab(label='Graph of Aggregate Data', value='tab-2'),
+        dcc.Tab(label='Graph of of Map-Reduce Data', value='tab-3'),
+    ]),
+    html.Div(id='tabs-example-content')
 ])
+
+@app.callback(Output('tabs-example-content', 'children'),
+              Input('tabs', 'value'))
+def render_content(tab):
+    if tab == 'tab-1':
+        return html.Div([
+            html.H3('Tab content 1'),
+            dcc.Graph(id="hotel-plot", figure=fig),
+            dcc.Dropdown(
+                    id='tag-select',
+                    options=dd.allTags,
+                    value='Leisure trip')
+        ])
+    elif tab == 'tab-2':
+        return html.Div([
+            html.H3('Tab content 2'),
+            dcc.Graph(id="piechart-nationality", figure=nationalityFig)
+        ])
+    elif tab == 'tab-3':
+        return html.Div([
+            html.H3('Tab content 3'),
+            dcc.Graph(id="additional-scoring", figure=additionalScoringFig)
+
+        ])
+
+
 
 if __name__ == '__main__':
     app.run_server(
